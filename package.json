@@ -1,0 +1,9 @@
+{
+  "name": "prep-tracker",
+  "version": "1.0.0",
+  "description": "35-day UI/UX interview prep tracker — local, no backend",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve -l 5173 ."
+  }
+}

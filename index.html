@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prep Tracker — 35-Day UI/UX Interview Prep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app-shell">
+
+  <header class="app-header">
+    <div>
+      <h1>Prep Tracker</h1>
+      <div class="tagline">35 days to interview-ready. One day at a time.</div>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">Dark mode</button>
+  </header>
+
+  <section class="pace-card" id="pace-card"></section>
+
+  <section class="dashboard" id="dashboard"></section>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="plan" role="tab" aria-selected="true">Plan</button>
+    <button class="tab-btn" data-tab="materials" role="tab" aria-selected="false">Materials Library</button>
+    <button class="tab-btn" data-tab="mocks" role="tab" aria-selected="false">Mock Test Log</button>
+  </nav>
+
+  <main>
+    <section class="tab-panel active" id="tab-plan"></section>
+
+    <section class="tab-panel" id="tab-materials">
+      <p class="panel-intro">Save anything worth revisiting — inspiration, articles, competitor apps, mock interview tools. Not just for the prep plan.</p>
+      <form class="card-form" id="material-form">
+        <div class="field-full">
+          <label for="mat-title">Title</label>
+          <input id="mat-title" required placeholder="e.g. Duolingo onboarding flow" />
+        </div>
+        <div class="field-full">
+          <label for="mat-url">URL</label>
+          <input id="mat-url" required type="url" placeholder="https://..." />
+        </div>
+        <div>
+          <label for="mat-type">Type</label>
+          <select id="mat-type">
+            <option value="article">Article</option>
+            <option value="video">Video</option>
+            <option value="design inspiration">Design inspiration</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="mat-tags">Tags (comma-separated)</label>
+          <input id="mat-tags" placeholder="e.g. onboarding, mobile" />
+        </div>
+        <div class="field-full">
+          <button type="submit" class="btn-primary">Save material</button>
+        </div>
+      </form>
+      <div class="search-bar">
+        <input id="material-search" placeholder="Search by title or tag..." />
+      </div>
+      <div id="materials-list"></div>
+    </section>
+
+    <section class="tab-panel" id="tab-mocks">
+      <p class="panel-intro">Log every mock test — free peer/AI sessions on Exponent, or a paid expert session on igotanoffer before the real thing.</p>
+      <form class="card-form" id="mock-form">
+        <div>
+          <label for="mock-date">Date</label>
+          <input id="mock-date" required type="date" />
+        </div>
+        <div>
+          <label for="mock-type">Type</label>
+          <select id="mock-type">
+            <option>Behavioral</option>
+            <option>Portfolio walkthrough</option>
+            <option>Design exercise</option>
+            <option>Full mixed mock</option>
+          </select>
+        </div>
+        <div>
+          <label for="mock-score">Score</label>
+          <input id="mock-score" placeholder="e.g. 7/10" />
+        </div>
+        <div class="field-full">
+          <label for="mock-notes">Notes</label>
+          <textarea id="mock-notes" rows="2" placeholder="What went well, what to fix next time..."></textarea>
+        </div>
+        <div class="field-full">
+          <button type="submit" class="btn-primary">Log mock test</button>
+        </div>
+      </form>
+      <div id="mock-trend"></div>
+      <div id="mocks-list"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span class="footer-note">Your data stays on this device — nothing is uploaded anywhere.</span>
+    <div id="reset-zone">
+      <button class="reset-btn" id="reset-btn">Reset all data</button>
+    </div>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="seed.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
