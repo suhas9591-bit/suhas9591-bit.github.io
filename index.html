@@ -101,7 +101,8 @@
   </main>
 
   <footer class="app-footer">
-    <span class="footer-note">Your data stays on this device — nothing is uploaded anywhere.</span>
+    <span class="footer-note" id="footer-note">Your data stays on this device — nothing is uploaded anywhere.</span>
+    <div id="sync-zone"></div>
     <div id="reset-zone">
       <button class="reset-btn" id="reset-btn">Reset all data</button>
     </div>
@@ -111,6 +112,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="seed.js"></script>
 <script src="app.js"></script>
 </body>

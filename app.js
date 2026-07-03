@@ -56,8 +56,11 @@ function loadState() {
 
   let settings = readJSON(STORAGE_KEYS.settings);
   if (!settings) {
-    settings = { theme: "dark", startDate: null, paused: false, pauseHistory: [] };
+    settings = { theme: "dark", startDate: null, paused: false, pauseHistory: [], syncCode: null, lastSyncedAt: null };
     writeJSON(STORAGE_KEYS.settings, settings);
+  } else {
+    if (settings.syncCode === undefined) settings.syncCode = null;
+    if (settings.lastSyncedAt === undefined) settings.lastSyncedAt = null;
   }
 
   return { days, materials, mocks, openWeeks, settings };
@@ -79,10 +82,10 @@ function writeJSON(key, value) {
 
 const state = loadState();
 
-function saveDays() { writeJSON(STORAGE_KEYS.days, state.days); }
-function saveMaterials() { writeJSON(STORAGE_KEYS.materials, state.materials); }
-function saveMocks() { writeJSON(STORAGE_KEYS.mocks, state.mocks); }
-function saveOpenWeeks() { writeJSON(STORAGE_KEYS.openWeeks, state.openWeeks); }
+function saveDays() { writeJSON(STORAGE_KEYS.days, state.days); scheduleSync(); }
+function saveMaterials() { writeJSON(STORAGE_KEYS.materials, state.materials); scheduleSync(); }
+function saveMocks() { writeJSON(STORAGE_KEYS.mocks, state.mocks); scheduleSync(); }
+function saveOpenWeeks() { writeJSON(STORAGE_KEYS.openWeeks, state.openWeeks); scheduleSync(); }
 function saveSettings() { writeJSON(STORAGE_KEYS.settings, state.settings); }
 
 // ---------- Utilities ----------
@@ -771,6 +774,196 @@ function initReset() {
   }
 }
 
+// ---------- Sync ----------
+
+const SUPABASE_URL = "https://mimkivocndjquzqrgeiu.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_PvyDCflM_gn3X-hd_SopBg_vD0uMJJd";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let syncTimer = null;
+let syncInFlight = false;
+
+function generateSyncCode() {
+  return crypto.randomUUID();
+}
+
+function syncPayload() {
+  return {
+    days: state.days,
+    materials: state.materials,
+    mocks: state.mocks,
+    openWeeks: state.openWeeks,
+  };
+}
+
+function scheduleSync() {
+  if (!state.settings.syncCode) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushSync, 1500);
+}
+
+async function pushSync() {
+  const code = state.settings.syncCode;
+  if (!code || syncInFlight) return;
+  syncInFlight = true;
+  try {
+    const { error } = await sb
+      .from("prep_tracker_sync")
+      .upsert({ sync_code: code, data: syncPayload(), updated_at: new Date().toISOString() }, { onConflict: "sync_code" });
+    if (error) throw error;
+    state.settings.lastSyncedAt = new Date().toISOString();
+    saveSettings();
+    renderSync();
+  } catch (e) {
+    console.error("Sync push failed", e);
+    showToast("Sync failed — will retry on next change");
+  } finally {
+    syncInFlight = false;
+  }
+}
+
+async function pullSync(code) {
+  const { data, error } = await sb
+    .from("prep_tracker_sync")
+    .select("data, updated_at")
+    .eq("sync_code", code)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+function applyRemote(remote) {
+  const d = remote.data || {};
+  state.days = d.days || state.days;
+  state.materials = d.materials || state.materials;
+  state.mocks = d.mocks || state.mocks;
+  state.openWeeks = d.openWeeks || state.openWeeks;
+  writeJSON(STORAGE_KEYS.days, state.days);
+  writeJSON(STORAGE_KEYS.materials, state.materials);
+  writeJSON(STORAGE_KEYS.mocks, state.mocks);
+  writeJSON(STORAGE_KEYS.openWeeks, state.openWeeks);
+  state.settings.lastSyncedAt = remote.updated_at;
+  saveSettings();
+  renderDashboard();
+  renderPlan();
+  renderMaterials();
+  renderMocks();
+  renderPace();
+}
+
+async function connectSync(code) {
+  const remote = await pullSync(code);
+  state.settings.syncCode = code;
+  if (remote) {
+    applyRemote(remote);
+  } else {
+    saveSettings();
+    await pushSync();
+  }
+}
+
+function disconnectSync() {
+  state.settings.syncCode = null;
+  state.settings.lastSyncedAt = null;
+  saveSettings();
+  renderSync();
+}
+
+function formatRelativeTime(iso) {
+  if (!iso) return "never";
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+async function connectSyncSafe(code) {
+  document.querySelectorAll(".sync-btn").forEach((b) => (b.disabled = true));
+  try {
+    await connectSync(code);
+    renderSync();
+    showToast("Sync connected");
+  } catch (e) {
+    console.error("Connect sync failed", e);
+    showToast("Couldn't connect sync — check the code and try again");
+  } finally {
+    document.querySelectorAll(".sync-btn").forEach((b) => (b.disabled = false));
+  }
+}
+
+function renderSync() {
+  const zone = document.getElementById("sync-zone");
+  const note = document.getElementById("footer-note");
+  const code = state.settings.syncCode;
+
+  if (!code) {
+    note.textContent = "Your data stays on this device unless you connect sync.";
+    zone.innerHTML = `
+      <div class="sync-box">
+        <input id="sync-code-input" placeholder="Paste sync code..." />
+        <button class="sync-btn" id="sync-connect-btn">Connect</button>
+        <button class="sync-btn" id="sync-new-btn">New code</button>
+      </div>
+    `;
+    document.getElementById("sync-connect-btn").addEventListener("click", () => {
+      const val = document.getElementById("sync-code-input").value.trim();
+      if (val) connectSyncSafe(val);
+    });
+    document.getElementById("sync-new-btn").addEventListener("click", () => {
+      connectSyncSafe(generateSyncCode());
+    });
+  } else {
+    note.textContent = `Synced across devices · last synced ${formatRelativeTime(state.settings.lastSyncedAt)}`;
+    zone.innerHTML = `
+      <div class="sync-box">
+        <code class="sync-code-display" title="${escapeHTML(code)}">${escapeHTML(code)}</code>
+        <button class="sync-btn" id="sync-copy-btn">Copy</button>
+        <button class="sync-btn" id="sync-refresh-btn">Sync now</button>
+        <button class="sync-btn" id="sync-disconnect-btn">Disconnect</button>
+      </div>
+    `;
+    document.getElementById("sync-copy-btn").addEventListener("click", () => {
+      navigator.clipboard.writeText(code);
+      showToast("Sync code copied");
+    });
+    document.getElementById("sync-refresh-btn").addEventListener("click", async () => {
+      document.querySelectorAll(".sync-btn").forEach((b) => (b.disabled = true));
+      try {
+        const remote = await pullSync(code);
+        if (remote && (!state.settings.lastSyncedAt || new Date(remote.updated_at) > new Date(state.settings.lastSyncedAt))) {
+          applyRemote(remote);
+        } else {
+          await pushSync();
+        }
+        renderSync();
+        showToast("Synced");
+      } catch (e) {
+        console.error("Manual sync failed", e);
+        showToast("Sync failed");
+      } finally {
+        document.querySelectorAll(".sync-btn").forEach((b) => (b.disabled = false));
+      }
+    });
+    document.getElementById("sync-disconnect-btn").addEventListener("click", disconnectSync);
+  }
+}
+
+async function initSyncOnLoad() {
+  const code = state.settings.syncCode;
+  if (!code) return;
+  try {
+    const remote = await pullSync(code);
+    if (remote && (!state.settings.lastSyncedAt || new Date(remote.updated_at) > new Date(state.settings.lastSyncedAt))) {
+      applyRemote(remote);
+      renderSync();
+    }
+  } catch (e) {
+    console.error("Initial sync pull failed", e);
+  }
+}
+
 // ---------- Init ----------
 
 function init() {
@@ -785,6 +978,8 @@ function init() {
   initMockForm();
   initTabs();
   initReset();
+  renderSync();
+  initSyncOnLoad();
   setInterval(renderPace, 60000);
 }
 

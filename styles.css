@@ -559,6 +559,49 @@ button {
   font-size: 0.8rem;
 }
 
+.sync-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sync-box input {
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  width: 180px;
+}
+
+.sync-code-display {
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-btn {
+  background: none;
+  border: 1px solid var(--hairline);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sync-btn:hover { color: var(--sage); border-color: var(--sage); }
+.sync-btn:disabled { opacity: 0.5; cursor: default; }
+
 .reset-btn {
   background: none;
   border: 1px solid var(--hairline);
